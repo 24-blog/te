@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テキスト抽出器</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0e;
+    --surface: #161616;
+    --surface2: #1f1f1f;
+    --border: #2a2a2a;
+    --gold: #c9a84c;
+    --gold-dim: #7a6330;
+    --text: #d8d0c4;
+    --text-dim: #6e6660;
+    --mono: 'DM Mono', monospace;
+    --serif: 'Noto Serif JP', serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--serif);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  header h1 {
+    font-size: 1.1rem;
+    font-weight: 300;
+    letter-spacing: 0.25em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  header p {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    letter-spacing: 0.05em;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 860px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+  }
+
+  .panel-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .panel-label {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.15em;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+  }
+
+  .char-count {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+  }
+
+  textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: vertical;
+    padding: 20px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    line-height: 1.7;
+    min-height: 200px;
+    caret-color: var(--gold);
+  }
+
+  textarea::placeholder {
+    color: var(--text-dim);
+    font-size: 0.7rem;
+  }
+
+  /* オプション */
+  .options {
+    padding: 16px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .option-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .option-item input[type="checkbox"] {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--gold-dim);
+    border-radius: 1px;
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .option-item input[type="checkbox"]:checked {
+    background: var(--gold-dim);
+  }
+
+  .option-item input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: -2px;
+    left: 1px;
+    font-size: 10px;
+    color: var(--bg);
+  }
+
+  .option-item label {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    letter-spacing: 0.05em;
+  }
+
+  /* ボタン */
+  .actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    padding: 10px 24px;
+    border: none;
+    border-radius: 1px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-transform: uppercase;
+  }
+
+  .btn-primary {
+    background: var(--gold);
+    color: #0e0e0e;
+    font-weight: 400;
+  }
+
+  .btn-primary:hover { background: #d9b85c; }
+  .btn-primary:active { transform: translateY(1px); }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--gold-dim);
+    color: var(--gold);
+  }
+
+  .btn-secondary:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  /* 結果エリア */
+  .result-panel {
+    display: none;
+  }
+
+  .result-panel.visible {
+    display: block;
+  }
+
+  .result-text {
+    padding: 20px;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    line-height: 1.8;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .result-text::-webkit-scrollbar { width: 4px; }
+  .result-text::-webkit-scrollbar-track { background: var(--surface); }
+  .result-text::-webkit-scrollbar-thumb { background: var(--border); }
+
+  /* 統計 */
+  .stats {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--gold);
+  }
+
+  /* 区切り線 */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    width: 100%;
+  }
+
+  /* 通知 */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    background: var(--surface2);
+    border: 1px solid var(--gold-dim);
+    padding: 10px 20px;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--gold);
+    letter-spacing: 0.08em;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.2s ease;
+    pointer-events: none;
+    border-radius: 1px;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Text Extractor</h1>
+  <p>HTML → テキスト抽出</p>
+</header>
+
+<div class="container">
+
+  <!-- 入力 -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-label">Input — HTML</span>
+      <span class="char-count" id="inputCount">0 chars</span>
+    </div>
+    <textarea id="htmlInput" placeholder="ここに貼り付け"></textarea>
+    <div class="options">
+      <label class="option-item">
+        <input type="checkbox" id="optHeadings" checked>
+        <label for="optHeadings">見出し構造を保持</label>
+      </label>
+      <label class="option-item">
+        <input type="checkbox" id="optMeta" checked>
+        <label for="optMeta">タイトル・日付を先頭に</label>
+      </label>
+      <label class="option-item">
+        <input type="checkbox" id="optBlank">
+        <label for="optBlank">空行を圧縮</label>
+      </label>
+      <label class="option-item">
+        <input type="checkbox" id="optNav">
+        <label for="optNav">ナビ・フッターを除去（推定）</label>
+      </label>
+    </div>
+    <div style="padding: 16px 20px;">
+      <div class="actions">
+        <button class="btn-primary" onclick="extract()">抽出する</button>
+        <button class="btn-secondary" onclick="clearAll()">クリア</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 結果 -->
+  <div class="panel result-panel" id="resultPanel">
+    <div class="panel-header">
+      <span class="panel-label">Output — Plain Text</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-secondary" onclick="copyText()">コピー</button>
+        <button class="btn-secondary" id="dlBtn" onclick="downloadTxt()">ダウンロード</button>
+      </div>
+    </div>
+    <div class="result-text" id="resultText"></div>
+    <div class="stats" id="statsArea"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const htmlInput = document.getElementById('htmlInput');
+const inputCount = document.getElementById('inputCount');
+const resultPanel = document.getElementById('resultPanel');
+const resultText = document.getElementById('resultText');
+const statsArea = document.getElementById('statsArea');
+
+htmlInput.addEventListener('input', () => {
+  inputCount.textContent = htmlInput.value.length.toLocaleString() + ' chars';
+});
+
+function extract() {
+  const raw = htmlInput.value.trim();
+  if (!raw) { showToast('HTMLを貼り付けてください'); return; }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(raw, 'text/html');
+
+  // 不要要素を除去
+  const removeSelectors = [
+    'script', 'style', 'noscript', 'iframe',
+    'head', 'svg', 'img', 'figure > figcaption',
+  ];
+
+  if (document.getElementById('optNav').checked) {
+    removeSelectors.push(
+      'nav', 'header', 'footer', '.nav', '.header', '.footer',
+      '.sidebar', '.widget', '#sidebar', '#header', '#footer',
+      '.hatena-module', '.hatena-urllist', '.hatena-bookmark-button',
+      '.entry-footer', '.entry-header-menu', '.breadcrumb',
+      '.social-buttons', '.related-entries', '.recommend',
+      '[class*="menu"]', '[class*="navi"]', '[id*="sidebar"]',
+      '[class*="banner"]', '[class*="ad"]', '[id*="ad"]'
+    );
+  }
+
+  removeSelectors.forEach(sel => {
+    doc.querySelectorAll(sel).forEach(el => el.remove());
+  });
+
+  // メタ情報
+  let metaBlock = '';
+  if (document.getElementById('optMeta').checked) {
+    const title =
+      doc.querySelector('.entry-title, .article-title, h1.title, .page-title, title')?.textContent?.trim()
+      || doc.querySelector('title')?.textContent?.trim()
+      || '';
+    const date =
+      doc.querySelector('time, .entry-date, .date, [class*="date"], [class*="time"]')?.textContent?.trim()
+      || '';
+    const url =
+      doc.querySelector('link[rel="canonical"]')?.getAttribute('href')
+      || '';
+
+    if (title || date) {
+      metaBlock = ['─'.repeat(40)];
+      if (title) metaBlock.push('■ ' + title);
+      if (date)  metaBlock.push('日付: ' + date.replace(/\s+/g, ' '));
+      if (url)   metaBlock.push('URL: ' + url);
+      metaBlock.push('─'.repeat(40));
+      metaBlock = metaBlock.join('\n') + '\n\n';
+    }
+  }
+
+  // 本文抽出
+  const contentRoot =
+    doc.querySelector('.entry-content, .article-body, .post-content, .hentry, main, article')
+    || doc.body;
+
+  const lines = [];
+  walkNode(contentRoot, lines);
+
+  let text = lines.join('\n');
+
+  // 空行圧縮
+  if (document.getElementById('optBlank').checked) {
+    text = text.replace(/\n{3,}/g, '\n\n');
+  }
+
+  text = metaBlock + text.trim();
+
+  // 表示
+  resultText.textContent = text;
+  resultPanel.classList.add('visible');
+
+  // 統計
+  const chars = text.length;
+  const words = text.split(/\s+/).filter(Boolean).length;
+  const linesCount = text.split('\n').length;
+  statsArea.innerHTML = `
+    <div class="stat"><span class="stat-label">文字数</span><span class="stat-value">${chars.toLocaleString()}</span></div>
+    <div class="stat"><span class="stat-label">行数</span><span class="stat-value">${linesCount.toLocaleString()}</span></div>
+    <div class="stat"><span class="stat-label">単語数</span><span class="stat-value">${words.toLocaleString()}</span></div>
+  `;
+
+  resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function walkNode(node, lines) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const t = node.textContent.replace(/\s+/g, ' ').trim();
+    if (t) lines.push(t);
+    return;
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+  const tag = node.tagName.toLowerCase();
+  const keepHeadings = document.getElementById('optHeadings').checked;
+
+  // ブロック前後に改行
+  const blockTags = ['p','div','section','article','blockquote','li','dt','dd','tr','pre'];
+  const headingTags = ['h1','h2','h3','h4','h5','h6'];
+
+  if (keepHeadings && headingTags.includes(tag)) {
+    const level = parseInt(tag[1]);
+    const prefix = ['■','▲','◆','●','○','・'][level - 1] || '■';
+    const text = node.textContent.replace(/\s+/g, ' ').trim();
+    if (text) {
+      lines.push('');
+      lines.push(prefix + ' ' + text);
+      lines.push('');
+    }
+    return;
+  }
+
+  if (tag === 'br') { lines.push(''); return; }
+  if (tag === 'hr') { lines.push('─'.repeat(30)); return; }
+
+  if (tag === 'li') {
+    const text = node.textContent.replace(/\s+/g, ' ').trim();
+    if (text) lines.push('・' + text);
+    return;
+  }
+
+  if (tag === 'blockquote') {
+    lines.push('');
+    node.childNodes.forEach(child => {
+      const sub = [];
+      walkNode(child, sub);
+      sub.forEach(l => lines.push('│ ' + l));
+    });
+    lines.push('');
+    return;
+  }
+
+  if (blockTags.includes(tag)) {
+    const before = lines.length;
+    node.childNodes.forEach(child => walkNode(child, lines));
+    if (lines.length > before) lines.push('');
+    return;
+  }
+
+  node.childNodes.forEach(child => walkNode(child, lines));
+}
+
+function copyText() {
+  const text = resultText.textContent;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => showToast('コピーしました'));
+}
+
+function downloadTxt() {
+  const text = resultText.textContent;
+  if (!text) return;
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'extracted_' + new Date().toISOString().slice(0,10) + '.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('ダウンロードしました');
+}
+
+function clearAll() {
+  htmlInput.value = '';
+  inputCount.textContent = '0 chars';
+  resultPanel.classList.remove('visible');
+  resultText.textContent = '';
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+</script>
+</body>
+</html>
