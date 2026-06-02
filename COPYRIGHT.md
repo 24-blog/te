@@ -2,3 +2,5 @@ The source code of this repository is licensed under MIT.
 
 Textual commentary written by the repository owner is
 licensed under CC BY-NC-ND 4.0.
+
+https://creativecommons.org/licenses/by-nc-nd/4.0/
