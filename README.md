@@ -1,0 +1,9 @@
+Preview<br>
+https://24-blog.github.io/te/
+
+
+⚠️COPYRIGHT<br>
+The source code of this repository is licensed under MIT.
+
+Textual commentary written by the repository owner is
+licensed under CC BY-NC-ND 4.0.
